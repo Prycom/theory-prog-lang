@@ -1,30 +1,26 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { leftToRight, replaceInv } from '$lib/generator';
+	import Tree from '../components/Tree.svelte';
 
 	let grammar = {
 		startSymbol: 'S',
 		rules: new Map([]),
-			/*
-        new Map([
-			['S', ['aA', 'bB']],
-			['A', ['aS', '']],
-			['B', ['bB', '']]
-		])
-        */
 		terminalSymbols: []
 	};
 
 	let minLen = 1;
 	let maxLen = 5;
 	let generatedChains: string[] = [];
+	let ltr = false
 
 	let ruleName = '';
 	let ruleTerminal = '';
     let newTermSym = '';
 
+
 	function generateChains() {
-		generatedChains = leftToRight(grammar, minLen, maxLen, true);
+		generatedChains = leftToRight(grammar, minLen, maxLen, !ltr);
 	}
 
 	function addRule() {
@@ -65,7 +61,7 @@
 
 <h2 class="text-xl font-semibold my-6">Лабораторная #1</h2>
 
-<button class="italic my-4 mx-4" on:click={() => console.log(grammar)}>[!] Debug INFO</button>
+<button class="italic my-4 mx-4" on:click={() => console.log(grammar, ltr)}>[!] Debug INFO</button>
 <h3 class="text-md font-semibold">Grammar</h3>
 <div>
 	<label for="start_sym">Start Symbol: </label>
@@ -99,6 +95,9 @@
     {/each}
 </div>
 
+<h3 class="font-semibold">Left To Right: </h3>
+<input type="checkbox" value={ltr} on:change={()=>ltr=!ltr} />
+
 <form on:submit|preventDefault={generateChains} class="mb-4">
 	<div class="m-4">
 		<label for="minLength">Min Length:</label>
@@ -118,4 +117,8 @@
 			<li class="border-b-2">{chain}</li>
 		{/each}
 	</ul>
+
 {/if}
+
+
+<Tree />
