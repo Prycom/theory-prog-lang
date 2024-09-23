@@ -27,7 +27,6 @@ export function leftToRight(grammar: Grammar, minLen: number, maxLen: number, re
         const count = Array.from(currChain).filter(ch => !nonTerminalSymbols.includes(ch)).length;
 
         if (count > maxLen) {
-            console.log(currChain, currChain.length)
             return;
         }
         for (const [nonTerminal, terminalSymbols] of grammar.rules) {
@@ -61,8 +60,5 @@ export function leftToRight(grammar: Grammar, minLen: number, maxLen: number, re
         }
     }
     gen(grammar.startSymbol, grammar.startSymbol);
-
-    console.log(chainsProgress)
-
     return chains.concat(chainsProgress);
 }

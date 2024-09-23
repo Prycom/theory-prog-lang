@@ -18,6 +18,7 @@
 	let ruleTerminal = '';
     let newTermSym = '';
 
+	let chainShowed = ''
 
 	function generateChains() {
 		generatedChains = leftToRight(grammar, minLen, maxLen, !ltr);
@@ -50,6 +51,7 @@
         newTermSym = ''
     }
 
+
 </script>
 
 <div class="flex w-full h-24 bg-slate-300">
@@ -61,7 +63,7 @@
 
 <h2 class="text-xl font-semibold my-6">Лабораторная #1</h2>
 
-<button class="italic my-4 mx-4" on:click={() => console.log(grammar, ltr)}>[!] Debug INFO</button>
+<button class="italic my-4 mx-4" on:click={() => console.log(grammar, ltr, chainsCount, treeIdx, chainShowed)}>[!] Debug INFO</button>
 <h3 class="text-md font-semibold">Grammar</h3>
 <div>
 	<label for="start_sym">Start Symbol: </label>
@@ -113,12 +115,15 @@
 {#if generatedChains.length > 0}
 	<h2>Generated Chains:</h2>
 	<ul class="">
-		{#each generatedChains as chain}
-			<li class="border-b-2">{chain}</li>
+		{#each generatedChains as chain, index}
+			<li class='border-t-2 text-xl font-semibold' >{chain}</li>
 		{/each}
 	</ul>
-
 {/if}
 
 
-<Tree />
+<h3 class="font-semibold">Building Tree: </h3>
+<input class='border-2' bind:value={chainShowed} placeholder="Insert chain to show...">
+{#if chainShowed != ''}
+	<Tree chain={chainShowed} rules={grammar.rules}/>
+{/if}
