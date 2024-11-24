@@ -2,24 +2,20 @@
 	import { writable } from 'svelte/store';
 
 	type DFA = {
-		states: string[]; // Список состояний
-		alphabet: string[]; // Алфавит
-		transitions: Record<string, Record<string, string>>; // Переходы
-		startState: string; // Начальное состояние
-		acceptStates: string[]; // Финальные состояния
+		states: string[]
+		alphabet: string[];
+		transitions: Record<string, Record<string, string>>;
+		startState: string;
+		acceptStates: string[];
 	};
 
-	const dfa = writable<DFA | null>(null); // Состояние ДКА
-	const dfaString = writable<string>(''); // JSON-строка загруженного ДКА
-	const inputString = writable<string>(''); // Цепочка ввода
-	const result = writable<string>(''); // Результат проверки
-	const trace = writable<string[]>([]); // Лог смены конфигураций
+	const dfa = writable<DFA | null>(null);
+	const dfaString = writable<string>('');
+	const inputString = writable<string>('');
+	const result = writable<string>(''); 
+	const trace = writable<string[]>([]); 
 
-	/**
-	 * Проверяет принадлежность цепочки языку.
-	 * @param automaton - ДКА.
-	 * @param chain - Проверяемая цепочка.
-	 */
+	
 	function checkChain(automaton: DFA, chain: string): void {
 		let currentState = automaton.startState;
 		const log: string[] = [`Начальное состояние: ${currentState}`];
@@ -55,10 +51,7 @@
 		trace.set(log);
 	}
 
-	/**
-	 * Обрабатывает загрузку файла с автоматом.
-	 * @param event - Событие загрузки файла.
-	 */
+
 	async function handleFileUpload(event: Event) {
 		const file = (event.target as HTMLInputElement).files?.[0];
 		if (!file) return;
@@ -68,7 +61,7 @@
 			const automaton: DFA = JSON.parse(content);
             console.log(automaton)
 			dfa.set(automaton);
-			dfaString.set(JSON.stringify(automaton, null, 2)); // Сохранение как красиво отформатированную строку
+			dfaString.set(JSON.stringify(automaton, null, 2));
 			result.set('');
 			trace.set([]);
 		} catch (error) {
@@ -77,9 +70,6 @@
 		}
 	}
 
-	/**
-	 * Обработка проверки цепочки.
-	 */
 	function handleCheck() {
 		dfa.subscribe((automaton) => {
 			if (automaton) {
@@ -135,10 +125,10 @@
 	<button on:click={handleCheck}>Проверить</button>
 </section>
 
-<section>
+<section class='mb-12'>
 	<h2>Результаты</h2>
 	<p><strong>Результат:</strong> {$result}</p>
-	<div class="log">
+	<div class="log mb-12">
 		<h3>Лог проверки:</h3>
 		<ul>
 			{#each $trace as step}
