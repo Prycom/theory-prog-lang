@@ -66,11 +66,13 @@
 		try {
 			const content = await file.text();
 			const automaton: DFA = JSON.parse(content);
+            console.log(automaton)
 			dfa.set(automaton);
 			dfaString.set(JSON.stringify(automaton, null, 2)); // Сохранение как красиво отформатированную строку
 			result.set('');
 			trace.set([]);
 		} catch (error) {
+            console.log(error)
 			alert('Ошибка загрузки автомата: неверный формат файла.');
 		}
 	}
@@ -82,6 +84,7 @@
 		dfa.subscribe((automaton) => {
 			if (automaton) {
 				inputString.subscribe((chain) => {
+                    console.log(automaton, chain)
 					checkChain(automaton, chain);
 				});
 			} else {
