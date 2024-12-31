@@ -1,173 +1,193 @@
 <script lang="ts">
-    import { writable } from 'svelte/store';
-  
-    // Типы данных для ДКА
-    type DFA = {
-      states: string[];
-      alphabet: string[];
-      transitions: Record<string, Record<string, string>>; // {state: {symbol: next_state}}
-      startState: string;
-      finalStates: string[];
-    };
-  
-    type Configuration = {
-      currentState: string;
-      remainingInput: string;
-    };
-  
-    // Хранилище для ДКА
-    const dfa = writable<DFA | null>(null);
-  
-    // Хранилище для цепочек
-    const inputChain = writable<string>('');
-    const configurations = writable<Configuration[]>([]);
-    const resultMessage = writable<string | null>(null);
-  
-    // Функция проверки цепочки
-    function processChain(chain: string, automaton: DFA) {
-      const configs: Configuration[] = [];
-      let currentState = automaton.startState;
-  
-      for (let i = 0; i < chain.length; i++) {
-        const symbol = chain[i];
-        configs.push({ currentState, remainingInput: chain.slice(i) });
-  
-        // Проверка символа на принадлежность алфавиту
-        if (!automaton.alphabet.includes(symbol)) {
-          resultMessage.set(`Error: Symbol '${symbol}' is not in the alphabet.`);
-          configurations.set(configs);
-          return;
-        }
-  
-        // Переход по функции переходов
-        const nextState = automaton.transitions[currentState]?.[symbol];
-        if (!nextState) {
-          resultMessage.set(
-            `Error: No transition defined for state '${currentState}' with input '${symbol}'.`
-          );
-          configurations.set(configs);
-          return;
-        }
-  
-        currentState = nextState;
-      }
-  
-      // Добавляем финальную конфигурацию
-      configs.push({ currentState, remainingInput: '' });
-  
-      // Проверка на принадлежность конечным состояниям
-      if (automaton.finalStates.includes(currentState)) {
-        resultMessage.set('The chain belongs to the language.');
-      } else {
-        resultMessage.set(
-          `Error: The chain ended in a non-final state '${currentState}'.`
-        );
-      }
-  
-      configurations.set(configs);
-    }
-  
-    // Загрузка ДКА
-    function loadDFA(input: string) {
-      try {
-        const parsed: DFA = JSON.parse(input);
-        dfa.set(parsed);
-        resultMessage.set(null);
-        configurations.set([]);
-      } catch (error) {
-        alert('Invalid DFA format.');
-      }
-    }
-  
-    // Пример формата ДКА
-    let exampleDFA = JSON.stringify(
-      {
-        states: ['q0', 'q1', 'q2'],
-        alphabet: ['0', '1'],
-        transitions: {
-          q0: { 0: 'q1', 1: 'q0' },
-          q1: { 0: 'q2', 1: 'q0' },
-          q2: { 0: 'q2', 1: 'q2' },
-        },
-        startState: 'q0',
-        finalStates: ['q2'],
-      },
-      null,
-      2
-    );
-  </script>
-  
-  <style>
-    /* Простая стилизация */
-    .configurations {
-      margin-top: 20px;
-    }
-  
-    .error {
-      color: red;
-    }
-  
-    .success {
-      color: green;
-    }
-  </style>
-  
-  <!-- Главный интерфейс -->
-  <div>
-    <h1>DFA Chain Validator</h1>
-  
-    <!-- Ввод ДКА -->
-    <div>
-      <h2>Load DFA</h2>
-      <textarea
-        bind:value={exampleDFA}
-        rows="10"
-        cols="50"
-      ></textarea>
-      <button on:click={() => loadDFA(exampleDFA)}>Load DFA</button>
-    </div>
-  
-    <!-- Ввод цепочки -->
-    {#if $dfa}
-      <div>
-        <h2>Enter Chain</h2>
-        <input
-          type="text"
-          bind:value={$inputChain}
-          placeholder="Enter chain (e.g., 001)"
-        />
-        <button on:click={() => processChain($inputChain, $dfa)}>Validate</button>
-      </div>
-    {/if}
-  
-    <!-- Результаты -->
-    {#if $resultMessage}
-      <p class={$resultMessage.startsWith('Error') ? 'error' : 'success'}>
-        {$resultMessage}
-      </p>
-    {/if}
-  
-    <!-- Конфигурации -->
-    {#if $configurations.length > 0}
-      <div class="configurations">
-        <h2>Configurations</h2>
-        <table border="1">
-          <thead>
-            <tr>
-              <th>Current State</th>
-              <th>Remaining Input</th>
-            </tr>
-          </thead>
-          <tbody>
-            {#each $configurations as config}
-              <tr>
-                <td>{config.currentState}</td>
-                <td>{config.remainingInput}</td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
-    {/if}
-  </div>
-  
+	import { writable } from 'svelte/store';
+
+	type DPDA = {
+		states: string[];
+		alphabet: string[];
+		stackAlphabet: string[];
+		transitions: Record<string, Record<string, [string, string][]>>;
+		startState: string;
+		startStackSymbol: string;
+		acceptStates: string[];
+	};
+
+	const dpda = writable<DPDA | null>(null);
+	const dpdaString = writable<string>('');
+	const inputString = writable<string>('');
+	const result = writable<string>('');
+	const trace = writable<string[]>([]);
+
+	/** Проверка цепочки для ДМПА */
+	function checkChain(automaton: DPDA, chain: string): void {
+		let currentState = automaton.startState;
+		let stack = [automaton.startStackSymbol];
+		const log: string[] = [
+			`Начальное состояние: ${currentState}, стек: [${stack.join(', ')}]`
+		];
+
+		for (const char of chain) {
+			if (!automaton.alphabet.includes(char)) {
+				result.set(`Ошибка: символ '${char}' не принадлежит алфавиту автомата.`);
+				trace.set(log);
+				return;
+			}
+
+			const stackTop = stack[stack.length - 1] || '';
+			const key = `(${currentState}, ${char}, ${stackTop})`;
+			const transitions = automaton.transitions[currentState]?.[char];
+
+			if (!transitions) {
+				result.set(`Ошибка: из состояния '${currentState}' нет перехода по символу '${char}' и вершине стека '${stackTop}'.`);
+				trace.set(log);
+				return;
+			}
+
+			const [nextState, stackAction] = transitions[0]; // Выбираем первый переход (детерминированный автомат)
+			log.push(`Состояние: ${currentState}, символ: '${char}', стек: [${stack.join(', ')}] -> новое состояние: ${nextState}, действие со стеком: '${stackAction}'`);
+
+			currentState = nextState;
+
+			if (stackAction === '') {
+				stack.pop();
+			} else {
+				stack.pop();
+				stack.push(...stackAction.split('').reverse());
+			}
+		}
+
+		while (stack.length > 0 && !automaton.acceptStates.includes(currentState)) {
+			const stackTop = stack[stack.length - 1];
+			const key = `(${currentState}, λ, ${stackTop})`;
+			const transitions = automaton.transitions[currentState]?.['λ'];
+
+			if (!transitions) {
+				result.set(`Ошибка: автомат застрял в состоянии '${currentState}' с непустым стеком [${stack.join(', ')}].`);
+				trace.set(log);
+				return;
+			}
+
+			const [nextState, stackAction] = transitions[0];
+			log.push(`Лямбда-переход: состояние '${currentState}', стек: [${stack.join(', ')}] -> новое состояние: ${nextState}, действие со стеком: '${stackAction}'`);
+
+			currentState = nextState;
+
+			if (stackAction === '') {
+				stack.pop();
+			} else {
+				stack.pop();
+				stack.push(...stackAction.split('').reverse());
+			}
+		}
+
+		if (automaton.acceptStates.includes(currentState)) {
+			result.set(`Цепочка '${chain}' принадлежит языку.`);
+		} else {
+			result.set(`Ошибка: автомат остановился в состоянии '${currentState}', которое не является принимающим.`);
+		}
+
+		trace.set(log);
+	}
+
+	/** Загрузка автомата из файла */
+	async function handleFileUpload(event: Event) {
+		const file = (event.target as HTMLInputElement).files?.[0];
+		if (!file) return;
+
+		try {
+			const content = await file.text();
+			const automaton: DPDA = JSON.parse(content);
+			dpda.set(automaton);
+			dpdaString.set(JSON.stringify(automaton, null, 2));
+			result.set('');
+			trace.set([]);
+		} catch (error) {
+			alert('Ошибка загрузки автомата: неверный формат файла.');
+		}
+	}
+
+	/** Обработчик проверки цепочки */
+	function handleCheck() {
+		dpda.subscribe((automaton) => {
+			if (automaton) {
+				inputString.subscribe((chain) => {
+					checkChain(automaton, chain);
+				});
+			} else {
+				alert('Сначала загрузите автомат.');
+			}
+		});
+	}
+</script>
+
+<h1 class="text-xl font-bold">Проверка цепочки для ДМПА</h1>
+
+<section class="m-2">
+	<h2 class="">Загрузка ДМПА</h2>
+	<input type="file" accept=".json" on:change={handleFileUpload} />
+	<p class="m-4">
+		{#if $dpdaString}
+			Загруженный ДМПА:
+			<pre class="dpda-code"><code>{$dpdaString}</code></pre>
+		{:else}
+			<p><em>Загрузите файл с автоматом, чтобы увидеть его содержимое.</em></p>
+			Формат файла должен быть JSON:
+			<pre>
+<code>
+{
+	`
+  "states": ["q0", "q1", "qf"],
+  "alphabet": ["0", "1"],
+  "stackAlphabet": ["Z", "0"],
+  "transitions": {
+    "(q0, 0, Z)": [["q0", "0Z"]],
+    "(q0, 1, 0)": [["q1", ""]],
+    "(q1, λ, Z)": [["qf", ""]]
+  },
+  "startState": "q0",
+  "startStackSymbol": "Z",
+  "acceptStates": ["qf"]
+`
+}
+</code>
+</pre>
+		{/if}
+	</p>
+</section>
+
+<section class="m-2">
+	<h2>Ввод цепочки</h2>
+	<input type="text" placeholder="Введите цепочку" bind:value={$inputString} />
+	<button on:click={handleCheck}>Проверить</button>
+</section>
+
+<section class="mb-12">
+	<h2>Результаты</h2>
+	<p><strong>Результат:</strong> {$result}</p>
+	<div class="log mb-12">
+		<h3>Лог проверки:</h3>
+		<ul>
+			{#each $trace as step}
+				<li>{step}</li>
+			{/each}
+		</ul>
+	</div>
+</section>
+
+<style>
+	.log {
+		margin-top: 1em;
+		background: #f9f9f9;
+		padding: 1em;
+		border-radius: 5px;
+		font-family: monospace;
+	}
+	.dpda-code {
+		margin-top: 1em;
+		background: #f4f4f4;
+		padding: 1em;
+		border: 1px solid #ccc;
+		border-radius: 5px;
+		font-family: monospace;
+		overflow-x: auto;
+	}
+</style>
